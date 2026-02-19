@@ -14,10 +14,12 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 EXPORT_DIR = "exports"
 if not os.path.exists(EXPORT_DIR): os.makedirs(EXPORT_DIR)
 
-def download_imagem(url, path):
+def download_imagem(tema, path):
+    # Forçamos a busca por imagens bíblicas e históricas para evitar erros como o do palhaço
+    search_term = f"biblical,{tema.replace(' ', ',')},historical"
+    url = f"https://source.unsplash.com/1280x720/?{search_term}"
     try:
-        # Busca imagem específica do tema no Unsplash
-        response = requests.get(url, timeout=15)
+        response = requests.get(url, timeout=20)
         if response.status_code == 200:
             with open(path, 'wb') as f:
                 f.write(response.content)
@@ -30,20 +32,17 @@ async def process_video_final(tema, video_id):
     image_path = f"{EXPORT_DIR}/{video_id}.jpg"
     video_path = f"{EXPORT_DIR}/{video_id}.mp4"
     
-    # URL focada no tema (ex: Jesus) para evitar fotos aleatórias
-    img_url = f"https://source.unsplash.com/1280x720/?{tema.replace(' ', ',')},cinematic"
-    
     try:
-        # 1. Baixar imagem do tema
-        download_imagem(img_url, image_path)
+        # 1. Baixar imagem com filtros rígidos
+        download_imagem(tema, image_path)
 
-        # 2. Gerar voz MASCULINA (Antonio)
-        texto = f"Explorando a verdade sobre {tema}. Veja agora."
-        # Mudamos de 'Francisca' para 'Antonio' (Voz masculina brasileira)
-        communicate = edge_tts.Communicate(texto, "pt-BR-AntonioNeural")
+        # 2. Gerar voz MASCULINA (Donaldo é uma excelente opção masculina)
+        texto = f"Refletindo sobre {tema}. Uma mensagem de fé para o seu dia."
+        # Mudamos explicitamente para Donaldo para garantir que não volte para Francisca
+        communicate = edge_tts.Communicate(texto, "pt-BR-DonaldoNeural")
         await communicate.save(audio_path)
 
-        # 3. Montar vídeo (7 segundos)
+        # 3. Montar vídeo (Exatos 7 segundos como você pediu)
         cmd = [
             'ffmpeg', '-y',
             '-loop', '1', '-i', image_path,
@@ -54,9 +53,11 @@ async def process_video_final(tema, video_id):
         ]
         subprocess.run(cmd, check=True)
         
+        # Limpar temporários
         if os.path.exists(audio_path): os.remove(audio_path)
         if os.path.exists(image_path): os.remove(image_path)
-    except: pass
+    except Exception as e:
+        print(f"Erro: {e}")
 
 @app.post("/gerar-video")
 async def gerar(tema: str, tasks: BackgroundTasks):
