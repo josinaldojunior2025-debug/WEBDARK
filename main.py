@@ -16,13 +16,13 @@ if not os.path.exists(EXPORT_DIR): os.makedirs(EXPORT_DIR)
 
 def download_imagem(url, path):
     try:
+        # Busca imagem específica do tema no Unsplash
         response = requests.get(url, timeout=15)
         if response.status_code == 200:
             with open(path, 'wb') as f:
                 f.write(response.content)
             return True
-    except:
-        return False
+    except: return False
     return False
 
 async def process_video_final(tema, video_id):
@@ -30,21 +30,20 @@ async def process_video_final(tema, video_id):
     image_path = f"{EXPORT_DIR}/{video_id}.jpg"
     video_path = f"{EXPORT_DIR}/{video_id}.mp4"
     
-    # URL de imagem mais estável
-    img_url = f"https://loremflickr.com/1280/720/dark,{tema.replace(' ', '')}"
+    # URL focada no tema (ex: Jesus) para evitar fotos aleatórias
+    img_url = f"https://source.unsplash.com/1280x720/?{tema.replace(' ', ',')},cinematic"
     
     try:
-        # 1. Baixar a imagem primeiro (Garante que ela exista)
-        if not download_imagem(img_url, image_path):
-            # Imagem de backup caso a busca falhe
-            download_imagem("https://images.unsplash.com/photo-1516339901601-2e1b62dc0c45?q=80&w=1280&h=720&auto=format&fit=crop", image_path)
+        # 1. Baixar imagem do tema
+        download_imagem(img_url, image_path)
 
-        # 2. Gerar a voz
-        texto = f"Iniciando relato sobre {tema}. O mistério se revela agora."
-        communicate = edge_tts.Communicate(texto, "pt-BR-FranciscaNeural")
+        # 2. Gerar voz MASCULINA (Antonio)
+        texto = f"Explorando a verdade sobre {tema}. Veja agora."
+        # Mudamos de 'Francisca' para 'Antonio' (Voz masculina brasileira)
+        communicate = edge_tts.Communicate(texto, "pt-BR-AntonioNeural")
         await communicate.save(audio_path)
 
-        # 3. Montar o vídeo usando a imagem local (Acaba com o problema da tela preta)
+        # 3. Montar vídeo (7 segundos)
         cmd = [
             'ffmpeg', '-y',
             '-loop', '1', '-i', image_path,
@@ -55,12 +54,9 @@ async def process_video_final(tema, video_id):
         ]
         subprocess.run(cmd, check=True)
         
-        # Limpar arquivos temporários para economizar espaço no Render
         if os.path.exists(audio_path): os.remove(audio_path)
         if os.path.exists(image_path): os.remove(image_path)
-
-    except Exception as e:
-        print(f"Erro: {e}")
+    except: pass
 
 @app.post("/gerar-video")
 async def gerar(tema: str, tasks: BackgroundTasks):
