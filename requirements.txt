@@ -3,3 +3,4 @@ uvicorn
 edge-tts
 requests
 python-multipart
+google-generativeai
